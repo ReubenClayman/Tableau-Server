@@ -1,36 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
-  </head>
-  <body></body>
-</html>
--- SELECT -- FILENAME, -- UPDATED_AT, -- STAGE_FILE_LAST_MODIFIED, --
-PARSE_JSON(DATA):k::string AS event_type, -- PARSE_JSON(DATA):pid::int AS
-process_id, -- PARSE_JSON(DATA):ts::string AS event_timestamp, --
-PARSE_JSON(DATA):v:: string AS value, -- PARSE_JSON(DATA):tid::string AS
-thread_id, -- PARSE_JSON(DATA):user:: string AS user, -- PARSE_JSON(DATA):req::
-string AS request, -- PARSE_JSON(DATA):site::string AS site, --
-PARSE_JSON(DATA):ctx:: string AS context, --
-PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string AS workbook, --
-PARSE_JSON(DATA):sess::string AS server_vizql_session, --
-PARSE_JSON(DATA):a::string AS art_logging, --
-PARSE_JSON(PARSE_JSON(DATA):a):elapsed::int AS elapsed, --
-PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:e::string AS e, --
-PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:i::string AS i, -- FROM
-LOGS_RAW -- --WHERE EVENT_TYPE = 'msg' -- WHERE PARSE_JSON(DATA):user::string <>
-'-' -- AND PARSE_JSON(DATA):k::string LIKE
-'end-bootstrap-session-action.bootstrap-session' -- LIMIT 100; SELECT
-PARSE_JSON(DATA):pid::int AS process_id, PARSE_JSON(DATA):ts::string AS
-event_timestamp, PARSE_JSON(DATA):user:: string AS user,
+--SELECT 
+-- FILENAME, 
+-- UPDATED_AT, 
+-- STAGE_FILE_LAST_MODIFIED, 
+--PARSE_JSON(DATA):k::string AS event_type, 
+-- PARSE_JSON(DATA):pid::int AS process_id, 
+-- PARSE_JSON(DATA):ts::string AS event_timestamp, 
+-- PARSE_JSON(DATA):v:: string AS value, 
+-- PARSE_JSON(DATA):tid::string AS thread_id, 
+-- PARSE_JSON(DATA):user:: string AS user, 
+-- PARSE_JSON(DATA):req:: string AS request, 
+-- PARSE_JSON(DATA):site::string AS site, 
+-- PARSE_JSON(DATA):ctx:: string AS context, 
+-- PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string AS workbook, 
+-- PARSE_JSON(DATA):sess::string AS server_vizql_session, 
+-- PARSE_JSON(DATA):a::string AS art_logging, 
+-- PARSE_JSON(PARSE_JSON(DATA):a):elapsed::int AS elapsed, 
+-- PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:e::string AS e, 
+-- PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:i::string AS i, 
+-- FROM LOGS_RAW -- 
+-- WHERE EVENT_TYPE = 'msg' 
+-- WHERE PARSE_JSON(DATA):user::string <> '-' 
+-- AND PARSE_JSON(DATA):k::string LIKE 'end-bootstrap-session-action.bootstrap-session'
+  -- LIMIT 100; 
+SELECT
+PARSE_JSON(DATA):pid::int AS process_id,
+PARSE_JSON(DATA):ts::string AS event_timestamp, 
+PARSE_JSON(DATA):user:: string AS user,
 PARSE_JSON(DATA):sess::string AS server_vizql_session,
 PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string AS workbook,
 PARSE_JSON(PARSE_JSON(DATA):ctx):vw::string AS sheet,
 PARSE_JSON(PARSE_JSON(DATA):a):elapsed::int AS elapsed,
 PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:e::string AS ucpu_e,
-PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:i::string AS ucpu_i, FROM
-LOGS_RAW WHERE PARSE_JSON(DATA):user::string <> '-' AND
-PARSE_JSON(DATA):k::string LIKE 'end-bootstrap-session-action.bootstrap-session'
+PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:i::string AS ucpu_i, 
+  FROM LOGS_RAW 
+  WHERE PARSE_JSON(DATA):user::string <> '-' 
+  AND PARSE_JSON(DATA):k::string LIKE 'end-bootstrap-session-action.bootstrap-session'
 LIMIT 100;
