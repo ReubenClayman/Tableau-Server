@@ -1,38 +1,68 @@
---SELECT 
--- FILENAME, 
--- UPDATED_AT, 
--- STAGE_FILE_LAST_MODIFIED, 
---PARSE_JSON(DATA):k::string AS event_type, 
--- PARSE_JSON(DATA):pid::int AS process_id, 
--- PARSE_JSON(DATA):ts::string AS event_timestamp, 
--- PARSE_JSON(DATA):v:: string AS value, 
--- PARSE_JSON(DATA):tid::string AS thread_id, 
--- PARSE_JSON(DATA):user:: string AS user, 
--- PARSE_JSON(DATA):req:: string AS request, 
--- PARSE_JSON(DATA):site::string AS site, 
--- PARSE_JSON(DATA):ctx:: string AS context, 
--- PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string AS workbook, 
--- PARSE_JSON(DATA):sess::string AS server_vizql_session, 
--- PARSE_JSON(DATA):a::string AS art_logging, 
--- PARSE_JSON(PARSE_JSON(DATA):a):elapsed::int AS elapsed, 
--- PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:e::string AS e, 
--- PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:i::string AS i, 
--- FROM LOGS_RAW -- 
--- WHERE EVENT_TYPE = 'msg' 
--- WHERE PARSE_JSON(DATA):user::string <> '-' 
--- AND PARSE_JSON(DATA):k::string LIKE 'end-bootstrap-session-action.bootstrap-session'
-  -- LIMIT 100; 
-SELECT
-PARSE_JSON(DATA):pid::int AS process_id,
-PARSE_JSON(DATA):ts::string AS event_timestamp, 
-PARSE_JSON(DATA):user:: string AS user,
-PARSE_JSON(DATA):sess::string AS server_vizql_session,
-PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string AS workbook,
-PARSE_JSON(PARSE_JSON(DATA):ctx):vw::string AS sheet,
-PARSE_JSON(PARSE_JSON(DATA):a):elapsed::int AS elapsed,
-PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:e::string AS ucpu_e,
-PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:i::string AS ucpu_i, 
-  FROM LOGS_RAW 
-  WHERE PARSE_JSON(DATA):user::string <> '-' 
+-- Query to extract and analyse server log data for user load times per workbook.
+-- This query processes raw log data stored in JSON format and provides key insights on user activities.
+
+SELECT 
+  -- Extract the process ID (pid), which is useful for identifying the process that handled the request
+  PARSE_JSON(DATA):pid::int AS process_id, 
+
+  -- Extract the event timestamp (ts), which indicates when the event occurred
+  PARSE_JSON(DATA):ts::string AS event_timestamp, 
+
+  -- Extract the user identifier (user) to track which user initiated the session or action
+  PARSE_JSON(DATA):user::string AS user, 
+
+  -- Extract the server VizQL session ID (sess), to group events by user session for better session tracking
+  PARSE_JSON(DATA):sess::string AS server_vizql_session,
+
+  -- Extract the workbook identifier (wb) from the context field to associate events with specific workbooks
+  PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string AS workbook,
+
+  -- Extract the view/sheet identifier (vw) from the context field to track which sheet or view the user is interacting with
+  PARSE_JSON(PARSE_JSON(DATA):ctx):vw::string AS sheet,
+
+  -- Extract the elapsed time (elapsed) from the action field to measure how long the operation took for the user
+  PARSE_JSON(PARSE_JSON(DATA):a):elapsed::int AS elapsed,
+
+  -- Extract user CPU usage data (ucpu) from the resource field and parse the 'e' value to analyse CPU utilisation in 'e' (likely user events or energy)
+  PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:e::string AS ucpu_e,
+
+  -- Extract additional user CPU usage data (ucpu) and parse the 'i' value to analyse CPU utilisation in 'i' (likely idle or information state)
+  PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:i::string AS ucpu_i,
+
+  -- Calculate the average elapsed time per workbook to get an overview of the load times for each workbook
+  AVG(PARSE_JSON(PARSE_JSON(DATA):a):elapsed::int) OVER (PARTITION BY PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string) AS avg_elapsed_time,
+
+  -- Calculate the number of events per workbook to identify if there are any workbooks with excessive event counts
+  COUNT(*) OVER (PARTITION BY PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string) AS event_count_per_workbook,
+
+  -- Calculate the average CPU usage (both 'e' and 'i') per workbook, which can indicate the computational load per workbook
+  AVG(CASE 
+    WHEN PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:e::string IS NOT NULL 
+    THEN CAST(PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:e::string AS FLOAT) 
+    ELSE 0 
+  END) OVER (PARTITION BY PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string) AS avg_cpu_e_usage,
+  
+  AVG(CASE 
+    WHEN PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:i::string IS NOT NULL 
+    THEN CAST(PARSE_JSON(PARSE_JSON(PARSE_JSON(DATA):a):res):ucpu:i::string AS FLOAT) 
+    ELSE 0 
+  END) OVER (PARTITION BY PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string) AS avg_cpu_i_usage
+  
+FROM 
+  -- Specify the raw logs table that contains the log data in JSON format
+  LOGS_RAW 
+
+WHERE 
+  -- Filter out any logs where the user field is a placeholder (e.g., '-'), ensuring only valid user data is processed
+  PARSE_JSON(DATA):user::string <> '-' 
+
+  -- Focus only on logs that correspond to the 'end-bootstrap-session-action.bootstrap-session' event type
   AND PARSE_JSON(DATA):k::string LIKE 'end-bootstrap-session-action.bootstrap-session'
-LIMIT 100;
+
+  -- Optional: Filter by a specific user or set of users for targeted analysis
+  -- AND PARSE_JSON(DATA):user::string IN ('user1', 'user2')
+
+  -- Optional: Filter by specific workbook if needed for focused analysis on particular workbooks
+  -- AND PARSE_JSON(PARSE_JSON(DATA):ctx):wb::string = 'desired_workbook'
+
+LIMIT 100;  -- Limit the result set to 100 rows for easier inspection, change as needed
